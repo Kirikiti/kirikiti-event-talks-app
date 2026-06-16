@@ -55,6 +55,12 @@ function setupEventListeners() {
     if (refreshBtn) {
         refreshBtn.addEventListener('click', fetchReleaseNotes);
     }
+
+    // Export CSV Button
+    const exportCsvBtn = document.getElementById('export-csv-btn');
+    if (exportCsvBtn) {
+        exportCsvBtn.addEventListener('click', exportToCSV);
+    }
     
     // Search Input
     const searchInput = document.getElementById('search-input');
@@ -299,7 +305,7 @@ function renderNotes() {
                         <button class="action-btn" title="Copy markdown snippet" onclick="copyMarkdownSnippet('${note.id}')">
                             ${ICONS.markdown}
                         </button>
-                        <button class="action-btn" title="Copy text content" onclick="copyTextContent('${note.id}')">
+                        <button class="action-btn" title="Copy plain text to clipboard" onclick="copyTextContent('${note.id}')">
                             ${ICONS.copy}
                         </button>
                         <button class="action-btn" title="Copy link to this release note" onclick="copyLink('${note.id}')">
@@ -330,7 +336,7 @@ function copyTextContent(noteId) {
     
     const textToCopy = `[BigQuery Release Note - ${note.category} (${note.date})]\n\n${note.plain_text}`;
     navigator.clipboard.writeText(textToCopy)
-        .then(() => showToast('✓ Copy text to clipboard successful'))
+        .then(() => showToast('✓ Copied to clipboard!'))
         .catch(err => console.error('Could not copy text: ', err));
 }
 
@@ -482,4 +488,42 @@ function showToast(message) {
     setTimeout(() => {
         toast.remove();
     }, 3000);
+}
+
+// Export to CSV Function
+function exportToCSV() {
+    if (state.filteredNotes.length === 0) {
+        showToast('⚠️ No release notes available to export.');
+        return;
+    }
+    
+    const headers = ["Date", "Category", "Official Link", "Update Content"];
+    
+    const rows = state.filteredNotes.map(note => {
+        return [
+            note.date,
+            note.category,
+            note.link,
+            note.plain_text
+        ].map(val => {
+            // Escape double quotes and wrap in double quotes
+            const cleanVal = val.replace(/"/g, '""');
+            return `"${cleanVal}"`;
+        }).join(",");
+    });
+    
+    const csvString = [headers.join(","), ...rows].join("\n");
+    
+    // Create download via Blob
+    const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `bigquery_release_notes_${state.selectedCategory.toLowerCase()}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    showToast('✓ CSV Export downloaded successfully');
 }
